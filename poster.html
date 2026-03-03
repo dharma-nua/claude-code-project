@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>I Love Dogs Poster</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pacifico&family=Nunito:wght@400;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #f5a623 0%, #f7c948 40%, #fff8e7 100%);
+      font-family: 'Nunito', sans-serif;
+    }
+
+    .poster {
+      background: white;
+      border-radius: 32px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.10);
+      padding: 50px 60px;
+      max-width: 560px;
+      width: 90%;
+      text-align: center;
+      border: 6px solid #f5a623;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .poster::before {
+      content: '🐾';
+      font-size: 80px;
+      position: absolute;
+      top: -20px;
+      left: -20px;
+      opacity: 0.08;
+      transform: rotate(-20deg);
+    }
+
+    .poster::after {
+      content: '🐾';
+      font-size: 80px;
+      position: absolute;
+      bottom: -20px;
+      right: -20px;
+      opacity: 0.08;
+      transform: rotate(20deg);
+    }
+
+    .top-text {
+      font-family: 'Pacifico', cursive;
+      font-size: 56px;
+      color: #e07b00;
+      text-shadow: 3px 3px 0px #f7c948, 5px 5px 0px rgba(0,0,0,0.08);
+      line-height: 1.1;
+      margin-bottom: 8px;
+      letter-spacing: 2px;
+    }
+
+    .heart {
+      font-size: 64px;
+      line-height: 1;
+      margin-bottom: 8px;
+      animation: heartbeat 1.2s ease-in-out infinite;
+      display: block;
+    }
+
+    @keyframes heartbeat {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+    }
+
+    .dog-frame {
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      margin: 20px auto;
+      border: 8px solid #f5a623;
+      box-shadow: 0 8px 30px rgba(245,166,35,0.4);
+      overflow: hidden;
+      background: #f7c948;
+      position: relative;
+    }
+
+    .dog-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .loading-dog {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 72px;
+      animation: spin 2s linear infinite;
+    }
+
+    @keyframes spin {
+      0%, 100% { transform: rotate(-5deg); }
+      50% { transform: rotate(5deg); }
+    }
+
+    .bottom-text {
+      font-family: 'Pacifico', cursive;
+      font-size: 38px;
+      color: #e07b00;
+      text-shadow: 2px 2px 0px #f7c948;
+      margin-top: 6px;
+      letter-spacing: 1px;
+    }
+
+    .subtitle {
+      font-size: 18px;
+      color: #b05e00;
+      margin-top: 14px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    .paws {
+      margin-top: 18px;
+      font-size: 28px;
+      letter-spacing: 8px;
+      opacity: 0.5;
+    }
+
+    .refresh-btn {
+      margin-top: 22px;
+      background: linear-gradient(135deg, #f5a623, #e07b00);
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 50px;
+      font-size: 16px;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(224,123,0,0.4);
+      transition: transform 0.15s, box-shadow 0.15s;
+      letter-spacing: 1px;
+    }
+
+    .refresh-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(224,123,0,0.5);
+    }
+
+    .refresh-btn:active {
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="poster">
+    <div class="top-text">I Love</div>
+    <span class="heart">❤️</span>
+
+    <div class="dog-frame" id="dogFrame">
+      <div class="loading-dog" id="loadingIcon">🐕</div>
+      <img id="dogImg" src="" alt="Cute Golden Retriever" style="display:none;"
+           onload="showDog()" onerror="showFallback()"/>
+    </div>
+
+    <div class="bottom-text">Golden Retrievers</div>
+    <div class="subtitle">Man's Best Friend</div>
+    <div class="paws">🐾 🐾 🐾</div>
+
+    <button class="refresh-btn" onclick="loadNewDog()">🐶 New Doggo!</button>
+  </div>
+
+  <script>
+    function loadNewDog() {
+      const img = document.getElementById('dogImg');
+      const icon = document.getElementById('loadingIcon');
+      img.style.display = 'none';
+      icon.style.display = 'flex';
+
+      fetch('https://dog.ceo/api/breed/retriever-golden/images/random')
+        .then(r => r.json())
+        .then(data => {
+          img.src = data.message;
+        })
+        .catch(() => showFallback());
+    }
+
+    function showDog() {
+      document.getElementById('loadingIcon').style.display = 'none';
+      document.getElementById('dogImg').style.display = 'block';
+    }
+
+    function showFallback() {
+      document.getElementById('loadingIcon').innerHTML = '🐕';
+      document.getElementById('loadingIcon').style.display = 'flex';
+      document.getElementById('dogImg').style.display = 'none';
+    }
+
+    loadNewDog();
+  </script>
+</body>
+</html>
