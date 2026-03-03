@@ -21,12 +21,17 @@ The page auto-loads a dog image on first render (`loadNewDog()` called at script
 
 ## Git Workflow
 
-Always commit and push after every change:
+**Commit and push after every meaningful change.** Do not batch multiple unrelated changes into one commit. The goal is to always have GitHub reflect the current working state so nothing is ever lost.
 
 ```bash
-git add poster.html
+git add <changed-files>
 git commit -m "short description of what changed"
 git push
 ```
+
+### Commit message conventions
+- Use the imperative mood: "Add animation" not "Added animation"
+- Be specific: "Fix fallback emoji not showing on API error" not "Fix bug"
+- One logical change per commit — never combine unrelated edits
 
 Remote: `https://github.com/dharma-nua/claude-code-project`
