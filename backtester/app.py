@@ -23,7 +23,534 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("📈 Phase 1.5 Backtester — C1-Only Engine")
+# ─── Theme injection ─────────────────────────────────────────────────────────
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');
+
+:root {
+    --bg-base:           #080c14;
+    --bg-surface:        #0d1525;
+    --bg-card:           #111b2e;
+    --bg-elevated:       #162038;
+    --border-subtle:     #1a2640;
+    --border-mid:        #243350;
+    --border-strong:     #2e4170;
+    --amber:             #e8a422;
+    --amber-dim:         #c4881a;
+    --amber-glow:        rgba(232,164,34,0.14);
+    --amber-glow-sm:     rgba(232,164,34,0.07);
+    --teal:              #0df2c8;
+    --teal-glow:         rgba(13,242,200,0.12);
+    --red:               #ff4d6d;
+    --blue:              #4d9ef7;
+    --text-1:            #c8d4e8;
+    --text-2:            #6b7b99;
+    --text-3:            #3d4d6a;
+    --font-ui:           'Sora', sans-serif;
+    --font-mono:         'JetBrains Mono', monospace;
+    --radius:            8px;
+    --radius-sm:         6px;
+}
+
+/* ── Reset / Base ─────────────────────────────────────────── */
+html, body { background-color: var(--bg-base) !important; }
+
+.stApp {
+    background:
+        radial-gradient(ellipse at 12% 0%,  rgba(232,164,34,0.045) 0%, transparent 52%),
+        radial-gradient(ellipse at 88% 95%, rgba(13,242,200,0.03)  0%, transparent 52%),
+        var(--bg-base) !important;
+    font-family: var(--font-ui) !important;
+    color: var(--text-1) !important;
+}
+
+.main .block-container {
+    padding-top: 2rem    !important;
+    padding-bottom: 3rem !important;
+    max-width: 1440px    !important;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────── */
+::-webkit-scrollbar           { width: 5px; height: 5px; }
+::-webkit-scrollbar-track     { background: var(--bg-surface); }
+::-webkit-scrollbar-thumb     { background: var(--border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--amber-dim); }
+
+/* ── Typography ──────────────────────────────────────────── */
+.backtester-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+.backtester-title-bar {
+    width: 4px;
+    height: 28px;
+    background: linear-gradient(180deg, var(--amber), var(--amber-dim));
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+.backtester-title-text {
+    font-family: var(--font-ui);
+    font-weight: 700;
+    font-size: 1.45rem;
+    letter-spacing: -0.025em;
+    color: var(--text-1);
+    line-height: 1;
+}
+.backtester-title-badge {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    color: var(--amber);
+    background: var(--amber-glow-sm);
+    border: 1px solid rgba(232,164,34,0.25);
+    padding: 3px 10px;
+    border-radius: 20px;
+}
+
+h1 {
+    font-family: var(--font-ui) !important;
+    font-weight: 700 !important;
+    font-size: 1.45rem !important;
+    letter-spacing: -0.025em !important;
+    color: var(--text-1) !important;
+}
+h2 {
+    font-family: var(--font-ui) !important;
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+    letter-spacing: -0.01em !important;
+    color: var(--text-1) !important;
+    padding-bottom: 0.6rem !important;
+    border-bottom: 1px solid var(--border-subtle) !important;
+    margin-bottom: 1rem !important;
+}
+h3 {
+    font-family: var(--font-ui) !important;
+    font-weight: 500 !important;
+    font-size: 0.72rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.12em !important;
+    color: var(--text-2) !important;
+    margin: 1.5rem 0 0.75rem !important;
+}
+p, li {
+    font-family: var(--font-ui) !important;
+    font-size: 0.875rem !important;
+    color: var(--text-1) !important;
+    line-height: 1.6 !important;
+}
+strong, b { color: var(--text-1) !important; font-weight: 600 !important; }
+em        { color: var(--text-2) !important; }
+
+/* ── Tabs ────────────────────────────────────────────────── */
+.stTabs [data-baseweb="tab-list"] {
+    background: transparent !important;
+    border-bottom: 1px solid var(--border-subtle) !important;
+    gap: 0 !important;
+    padding: 0 !important;
+    margin-bottom: 0 !important;
+}
+.stTabs [data-baseweb="tab"] {
+    font-family: var(--font-ui) !important;
+    font-size: 0.7rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.07em !important;
+    text-transform: uppercase !important;
+    color: var(--text-2) !important;
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 2px solid transparent !important;
+    padding: 0.75rem 1.1rem !important;
+    transition: color 0.18s, background 0.18s !important;
+    margin-bottom: -1px !important;
+}
+.stTabs [data-baseweb="tab"]:hover {
+    color: var(--text-1) !important;
+    background: rgba(255,255,255,0.02) !important;
+}
+.stTabs [aria-selected="true"] {
+    color: var(--amber) !important;
+    border-bottom: 2px solid var(--amber) !important;
+    background: var(--amber-glow-sm) !important;
+}
+.stTabs [data-baseweb="tab-panel"] {
+    padding-top: 1.5rem !important;
+    background: transparent !important;
+}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.stButton > button {
+    font-family: var(--font-ui) !important;
+    font-size: 0.78rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.025em !important;
+    background: var(--bg-elevated) !important;
+    color: var(--text-1) !important;
+    border: 1px solid var(--border-mid) !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 0.45rem 1.1rem !important;
+    transition: all 0.16s ease !important;
+    white-space: nowrap !important;
+}
+.stButton > button:hover:not(:disabled) {
+    background: var(--bg-card) !important;
+    border-color: var(--border-strong) !important;
+    color: var(--amber) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35) !important;
+}
+.stButton > button[kind="primary"] {
+    background: var(--amber) !important;
+    color: #080c14 !important;
+    border: none !important;
+    font-weight: 600 !important;
+    box-shadow: 0 0 22px rgba(232,164,34,0.28), inset 0 1px 0 rgba(255,255,255,0.1) !important;
+}
+.stButton > button[kind="primary"]:hover:not(:disabled) {
+    background: #f5b83a !important;
+    color: #060a0f !important;
+    box-shadow: 0 4px 26px rgba(232,164,34,0.45) !important;
+    transform: translateY(-1px) !important;
+}
+.stButton > button:disabled {
+    opacity: 0.3 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* ── Download Buttons ────────────────────────────────────── */
+.stDownloadButton > button {
+    font-family: var(--font-ui) !important;
+    font-size: 0.76rem !important;
+    font-weight: 500 !important;
+    background: var(--bg-surface) !important;
+    color: var(--text-2) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 0.4rem 0.9rem !important;
+    transition: all 0.16s ease !important;
+}
+.stDownloadButton > button:hover {
+    background: rgba(13,242,200,0.06) !important;
+    color: var(--teal) !important;
+    border-color: rgba(13,242,200,0.35) !important;
+    box-shadow: 0 2px 12px rgba(13,242,200,0.12) !important;
+}
+
+/* ── Metrics ─────────────────────────────────────────────── */
+[data-testid="stMetric"] {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-top: 2px solid var(--amber) !important;
+    border-radius: var(--radius) !important;
+    padding: 1rem 1.1rem !important;
+    transition: border-color 0.2s, box-shadow 0.2s !important;
+}
+[data-testid="stMetric"]:hover {
+    border-top-color: var(--amber) !important;
+    box-shadow: 0 0 20px var(--amber-glow-sm) !important;
+}
+[data-testid="stMetricLabel"] > div {
+    font-family: var(--font-ui) !important;
+    font-size: 0.68rem !important;
+    font-weight: 500 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.09em !important;
+    color: var(--text-2) !important;
+}
+[data-testid="stMetricValue"] > div {
+    font-family: var(--font-mono) !important;
+    font-size: 1.55rem !important;
+    font-weight: 600 !important;
+    color: var(--text-1) !important;
+    letter-spacing: -0.02em !important;
+    line-height: 1.2 !important;
+}
+[data-testid="stMetricDelta"] svg { display: none !important; }
+[data-testid="stMetricDelta"] > div {
+    font-family: var(--font-mono) !important;
+    font-size: 0.72rem !important;
+}
+
+/* ── DataFrame ────────────────────────────────────────────── */
+[data-testid="stDataFrame"] {
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: var(--radius) !important;
+    overflow: hidden !important;
+    background: var(--bg-surface) !important;
+}
+[data-testid="stDataFrame"] iframe {
+    border-radius: var(--radius) !important;
+}
+
+/* ── Inputs (text / number / date) ───────────────────────── */
+.stTextInput  input,
+.stNumberInput input,
+.stDateInput  input {
+    font-family: var(--font-mono) !important;
+    font-size: 0.82rem !important;
+    background: var(--bg-surface) !important;
+    color: var(--text-1) !important;
+    border: 1px solid var(--border-mid) !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 0.5rem 0.75rem !important;
+    caret-color: var(--amber) !important;
+    transition: border-color 0.16s, box-shadow 0.16s !important;
+}
+.stTextInput  input:focus,
+.stNumberInput input:focus,
+.stDateInput  input:focus {
+    border-color: var(--amber) !important;
+    box-shadow: 0 0 0 2px var(--amber-glow) !important;
+    outline: none !important;
+}
+
+/* ── Form labels ─────────────────────────────────────────── */
+.stTextInput   label,
+.stNumberInput label,
+.stDateInput   label,
+.stSelectbox   label,
+.stMultiSelect label,
+.stFileUploader label,
+.stToggle [data-testid="stWidgetLabel"],
+[data-testid="stWidgetLabel"] p {
+    font-family: var(--font-ui) !important;
+    font-size: 0.7rem !important;
+    font-weight: 500 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    color: var(--text-2) !important;
+}
+
+/* ── Selectbox ───────────────────────────────────────────── */
+.stSelectbox [data-baseweb="select"] > div:first-child {
+    font-family: var(--font-mono) !important;
+    font-size: 0.82rem !important;
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border-mid) !important;
+    border-radius: var(--radius-sm) !important;
+    color: var(--text-1) !important;
+}
+.stSelectbox [data-baseweb="select"] > div:first-child:hover {
+    border-color: var(--border-strong) !important;
+}
+.stSelectbox [data-baseweb="select"]:focus-within > div:first-child {
+    border-color: var(--amber) !important;
+    box-shadow: 0 0 0 2px var(--amber-glow) !important;
+}
+
+/* ── Multiselect ─────────────────────────────────────────── */
+.stMultiSelect [data-baseweb="select"] > div:first-child {
+    font-family: var(--font-ui) !important;
+    font-size: 0.82rem !important;
+    background: var(--bg-surface) !important;
+    border: 1px solid var(--border-mid) !important;
+    border-radius: var(--radius-sm) !important;
+}
+.stMultiSelect [data-baseweb="tag"] {
+    background: var(--amber-glow) !important;
+    border: 1px solid rgba(232,164,34,0.3) !important;
+    border-radius: 4px !important;
+}
+.stMultiSelect [data-baseweb="tag"] span {
+    font-family: var(--font-mono) !important;
+    font-size: 0.72rem !important;
+    color: var(--amber) !important;
+}
+
+/* ── File Uploader ───────────────────────────────────────── */
+[data-testid="stFileUploaderDropzone"] {
+    background: var(--bg-surface) !important;
+    border: 1px dashed var(--border-mid) !important;
+    border-radius: var(--radius) !important;
+    transition: all 0.18s ease !important;
+}
+[data-testid="stFileUploaderDropzone"]:hover {
+    border-color: rgba(232,164,34,0.5) !important;
+    background: var(--amber-glow-sm) !important;
+}
+[data-testid="stFileUploaderDropzone"] > div {
+    font-family: var(--font-ui) !important;
+    font-size: 0.82rem !important;
+    color: var(--text-2) !important;
+}
+[data-testid="stFileUploader"] section small {
+    font-family: var(--font-mono) !important;
+    font-size: 0.7rem !important;
+    color: var(--text-3) !important;
+}
+
+/* ── Expanders ───────────────────────────────────────────── */
+.stExpander {
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: var(--radius) !important;
+    background: var(--bg-surface) !important;
+    overflow: hidden !important;
+}
+.stExpander > details > summary {
+    font-family: var(--font-ui) !important;
+    font-size: 0.78rem !important;
+    font-weight: 500 !important;
+    color: var(--text-2) !important;
+    padding: 0.75rem 1rem !important;
+    background: var(--bg-surface) !important;
+    cursor: pointer !important;
+    transition: color 0.15s, background 0.15s !important;
+}
+.stExpander > details > summary:hover {
+    color: var(--amber) !important;
+    background: var(--amber-glow-sm) !important;
+}
+.stExpander > details > summary svg { color: var(--text-3) !important; }
+.stExpander > details[open] > summary {
+    border-bottom: 1px solid var(--border-subtle) !important;
+}
+.stExpander > details > div {
+    background: var(--bg-surface) !important;
+    padding: 0.75rem 1rem !important;
+}
+
+/* ── Alerts ──────────────────────────────────────────────── */
+[data-testid="stAlert"] {
+    border-radius: var(--radius-sm) !important;
+    font-family: var(--font-ui) !important;
+    font-size: 0.82rem !important;
+    padding: 0.7rem 1rem !important;
+    border-width: 1px !important;
+    border-style: solid !important;
+}
+[data-testid="stAlert"][data-baseweb="notification"] { background: transparent !important; }
+
+/* success */
+.stSuccess [data-testid="stMarkdownContainer"],
+[data-testid="stAlertContentSuccess"] {
+    background: rgba(13,242,200,0.07) !important;
+}
+div:has(> [data-testid="stAlertContentSuccess"]) {
+    background: rgba(13,242,200,0.07) !important;
+    border-color: rgba(13,242,200,0.3) !important;
+    color: var(--teal) !important;
+}
+/* error */
+div:has(> [data-testid="stAlertContentError"]) {
+    background: rgba(255,77,109,0.07) !important;
+    border-color: rgba(255,77,109,0.3) !important;
+    color: var(--red) !important;
+}
+/* warning */
+div:has(> [data-testid="stAlertContentWarning"]) {
+    background: rgba(232,164,34,0.07) !important;
+    border-color: rgba(232,164,34,0.3) !important;
+    color: var(--amber) !important;
+}
+/* info */
+div:has(> [data-testid="stAlertContentInfo"]) {
+    background: rgba(77,158,247,0.07) !important;
+    border-color: rgba(77,158,247,0.3) !important;
+    color: var(--blue) !important;
+}
+
+/* ── Divider ─────────────────────────────────────────────── */
+hr, .stDivider hr {
+    border: none !important;
+    border-top: 1px solid var(--border-subtle) !important;
+    margin: 1.5rem 0 !important;
+}
+
+/* ── Code ────────────────────────────────────────────────── */
+code {
+    font-family: var(--font-mono) !important;
+    font-size: 0.8rem !important;
+    background: rgba(13,242,200,0.08) !important;
+    color: var(--teal) !important;
+    padding: 0.1em 0.4em !important;
+    border-radius: 4px !important;
+}
+pre, .stCode > div, [data-testid="stCode"] > div {
+    font-family: var(--font-mono) !important;
+    font-size: 0.76rem !important;
+    background: #050810 !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: var(--radius) !important;
+    color: #8da4c8 !important;
+    line-height: 1.6 !important;
+}
+pre code { background: transparent !important; color: inherit !important; padding: 0 !important; }
+
+/* ── Progress bar ────────────────────────────────────────── */
+.stProgress > div > div {
+    background: var(--bg-elevated) !important;
+    border-radius: 4px !important;
+    overflow: hidden !important;
+}
+.stProgress > div > div > div > div {
+    background: linear-gradient(90deg, var(--amber) 0%, var(--teal) 100%) !important;
+    border-radius: 4px !important;
+    transition: width 0.3s ease !important;
+}
+
+/* ── Toggle ──────────────────────────────────────────────── */
+.stToggle > label > div[data-testid="stMarkdownContainer"] p {
+    font-size: 0.82rem !important;
+    color: var(--text-2) !important;
+}
+
+/* ── Caption ─────────────────────────────────────────────── */
+[data-testid="stCaptionContainer"] p {
+    font-family: var(--font-ui) !important;
+    font-size: 0.7rem !important;
+    color: var(--text-3) !important;
+    letter-spacing: 0.02em !important;
+}
+
+/* ── JSON viewer ─────────────────────────────────────────── */
+[data-testid="stJson"] {
+    background: #050810 !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: var(--radius) !important;
+    font-family: var(--font-mono) !important;
+    font-size: 0.76rem !important;
+}
+
+/* ── Info/help text ──────────────────────────────────────── */
+[data-testid="stMarkdownContainer"] p {
+    font-family: var(--font-ui) !important;
+    font-size: 0.875rem !important;
+}
+
+/* ── Column gaps ─────────────────────────────────────────── */
+[data-testid="stHorizontalBlock"] { gap: 1.25rem !important; }
+
+/* ── Header bar override ─────────────────────────────────── */
+.stApp > header {
+    background: rgba(8,12,20,0.9) !important;
+    backdrop-filter: blur(8px) !important;
+    border-bottom: 1px solid var(--border-subtle) !important;
+}
+
+/* ── Toolbar ─────────────────────────────────────────────── */
+[data-testid="stToolbar"] { background: transparent !important; }
+
+/* ── Spinner ─────────────────────────────────────────────── */
+[data-testid="stSpinner"] > div { border-top-color: var(--amber) !important; }
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div class="backtester-title">
+    <div class="backtester-title-bar"></div>
+    <div class="backtester-title-text">Backtester</div>
+    <div class="backtester-title-badge">PHASE 1.5 · C1-ONLY ENGINE</div>
+</div>
+""", unsafe_allow_html=True)
 
 # ─── Session state initialization ───────────────────────────────────────────
 for key, default in [
