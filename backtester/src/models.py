@@ -14,6 +14,13 @@ class BacktestConfig:
     commission: Optional[float] = None
     phase: str = "Phase1-C1"
     run_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    selected_indicator_id: Optional[str] = None
+    selected_indicator_hash: Optional[str] = None
+    mapped_signal_csv_path: Optional[str] = None
+    mapped_signal_csv_hash: Optional[str] = None
+    candle_source_type: str = "csv"
+    candle_normalized_output_path: Optional[str] = None
+    statement_import_run_id: Optional[str] = None
 
 
 @dataclass

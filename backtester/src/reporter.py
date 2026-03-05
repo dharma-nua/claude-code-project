@@ -95,6 +95,13 @@ def _write_simulation_json(result: BacktestResult, output_dir: str) -> str:
         "commission": cfg.commission,
         "total_bars_processed": len(result.journal),
         "total_trades": len(result.trades),
+        "selected_indicator_id": cfg.selected_indicator_id,
+        "selected_indicator_hash": cfg.selected_indicator_hash,
+        "mapped_signal_csv_path": cfg.mapped_signal_csv_path,
+        "mapped_signal_csv_hash": cfg.mapped_signal_csv_hash,
+        "candle_source_type": cfg.candle_source_type,
+        "candle_normalized_output_path": cfg.candle_normalized_output_path,
+        "statement_import_run_id": cfg.statement_import_run_id,
     }
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)

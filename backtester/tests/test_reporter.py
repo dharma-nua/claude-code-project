@@ -114,6 +114,14 @@ class TestReporterOutputFiles:
                 sim = json.load(f)
             assert "run_id" in sim
             assert sim["run_id"] == result.config.run_id
+            # Phase 1.5 new fields
+            assert "candle_source_type" in sim
+            assert "selected_indicator_id" in sim
+            assert "selected_indicator_hash" in sim
+            assert "mapped_signal_csv_path" in sim
+            assert "mapped_signal_csv_hash" in sim
+            assert "candle_normalized_output_path" in sim
+            assert "statement_import_run_id" in sim
 
     def test_report_html_is_valid_html(self):
         result = make_result_with_trades()
