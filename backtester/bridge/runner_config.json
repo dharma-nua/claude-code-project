@@ -1,0 +1,7 @@
+{
+  "mt4_terminal_path": null,
+  "mt4_metaeditor_path": null,
+  "job_timeout_seconds": 300,
+  "poll_interval_seconds": 3,
+  "watch_interval_seconds": 5
+}

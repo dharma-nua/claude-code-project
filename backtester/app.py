@@ -1,6 +1,7 @@
 import os
 import json
 import tempfile
+import uuid
 from datetime import date
 from pathlib import Path
 
@@ -14,7 +15,7 @@ from src.models import BacktestConfig
 from src.reporter import generate_outputs
 from src import ctf_adapter, indicator_library, mapping_manager, comparator
 from src.statement_parser import parse_statement, save_statement_outputs
-from bridge import job_manager
+from bridge import job_manager, launcher
 
 st.set_page_config(
     page_title="Backtester — Phase 1.5",
@@ -37,6 +38,9 @@ for key, default in [
     ("selected_indicator_id", None),
     ("stmt_summary", None),
     ("last_run_id", None),
+    ("ctf_file_path", None),
+    ("ctf_name", None),
+    ("bridge_mode_active", False),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -91,6 +95,14 @@ with tab_upload:
         ctf_file = st.file_uploader("Upload candles CTF", type=["ctf"], key="ctf_uploader")
 
         if ctf_file:
+            # Always save raw CTF bytes for potential bridge use
+            ctf_upload_dir = Path(__file__).parent / "imports" / "ctf_uploads"
+            ctf_upload_dir.mkdir(parents=True, exist_ok=True)
+            ctf_save_path = ctf_upload_dir / ctf_file.name
+            ctf_save_path.write_bytes(ctf_file.getvalue())
+            st.session_state["ctf_file_path"] = str(ctf_save_path)
+            st.session_state["ctf_name"] = ctf_file.name
+
             success, df_ctf, msg = ctf_adapter.parse_ctf(ctf_file)
             if success:
                 st.session_state.candles_df = df_ctf
@@ -100,6 +112,8 @@ with tab_upload:
                 st.dataframe(df_ctf.head(10), use_container_width=True)
             else:
                 st.warning(f"⚠️ {msg}")
+                st.info(f"CTF saved to disk ({ctf_file.name}). If you have an .mq4 indicator, "
+                        "select it in Setup and use **Run via Bridge** in the Run tab.")
 
     with col_s:
         st.markdown("**Signals CSV**")
@@ -311,70 +325,174 @@ with tab_setup:
 with tab_run:
     st.subheader("Run Backtest")
 
-    both_valid = st.session_state.candles_valid and st.session_state.signals_valid
-    if not both_valid:
-        st.warning("⚠️ Please upload and validate both candles and signals files before running.")
-
     setup = st.session_state.get("setup_config", {})
-    if not setup.get("symbols"):
-        st.error("No symbols selected. Go to Setup tab and select at least one symbol.")
+    ind_id = st.session_state.selected_indicator_id
+    ctf_path = st.session_state.get("ctf_file_path")
+    has_signals = st.session_state.signals_valid
 
-    run_disabled = not both_valid or not setup.get("symbols")
+    # Determine bridge mode: have indicator + CTF but no signals yet
+    bridge_mode = bool(ind_id and ctf_path and not has_signals)
 
-    run_btn = st.button("▶️ Run Backtest", disabled=run_disabled, type="primary")
+    # ── Bridge path ──────────────────────────────────────────────────────
+    if bridge_mode:
+        ind_entry = indicator_library.get_indicator(ind_id)
+        ctf_display = Path(ctf_path).name if ctf_path else ""
 
-    if run_btn:
-        st.session_state.run_log = []
-        progress = st.progress(0, text="Initializing…")
-        log_box = st.empty()
+        st.info("Mode: .mq4 + .ctf detected → Bridge execution required")
+        if ind_entry:
+            st.caption(f"Indicator: {ind_entry['name']}  |  CTF: {ctf_display}")
 
-        log_lines = []
+        if not setup.get("symbols"):
+            st.error("No symbols selected. Go to Setup tab first.")
+        else:
+            run_bridge_btn = st.button("▶️ Run via Bridge", type="primary")
+            if run_bridge_btn:
+                run_id = str(uuid.uuid4())
+                config_dict = {
+                    "symbols": setup["symbols"],
+                    "date_range": {
+                        "from": setup.get("date_from"),
+                        "to": setup.get("date_to"),
+                    },
+                }
+                job_manager.write_job(
+                    run_id=run_id,
+                    indicator_id=ind_id,
+                    indicator_file=ind_entry["file_name"],
+                    candle_source_type="ctf",
+                    candle_file=ctf_path,
+                    config_dict=config_dict,
+                )
+                launcher.start_runner(run_id)
+                st.session_state.last_run_id = run_id
+                st.session_state.bridge_mode_active = True
+                st.rerun()
 
-        def log_callback(msg: str):
-            log_lines.append(msg)
-            log_box.code("\n".join(log_lines[-40:]), language=None)
+    # ── Bridge polling (after job submitted) ─────────────────────────────
+    if st.session_state.get("bridge_mode_active"):
+        run_id = st.session_state.last_run_id
+        status_info = job_manager.read_job_status(run_id)
+        status = status_info["status"]
 
-        config = BacktestConfig(
-            symbols=setup["symbols"],
-            date_range={"from": setup.get("date_from"), "to": setup.get("date_to")},
-            reverse_on_flip=setup.get("reverse_on_flip", False),
-            lot_size=setup.get("lot_size"),
-            pip_value=setup.get("pip_value"),
-            spread=setup.get("spread"),
-            commission=setup.get("commission"),
-            candle_source_type=st.session_state.candle_source_type,
-            selected_indicator_id=st.session_state.selected_indicator_id,
-        )
+        if status == "done":
+            outputs = job_manager.get_done_outputs(run_id)
+            try:
+                candles_df = pd.read_csv(outputs["normalized_candles"])
+                signals_df = pd.read_csv(outputs["normalized_signals"])
+                from src.validator import validate_candles, validate_signals
+                c_ok, c_err = validate_candles(candles_df)
+                s_ok, s_err = validate_signals(signals_df)
+                if not c_ok or not s_ok:
+                    st.error("Bridge output validation failed: " + "; ".join(c_err + s_err))
+                else:
+                    st.session_state.candles_df = candles_df
+                    st.session_state.candles_valid = True
+                    st.session_state.signals_df = signals_df
+                    st.session_state.signals_valid = True
+                    st.session_state.bridge_mode_active = False
+                    st.success("Bridge complete. Running engine…")
 
-        progress.progress(10, text="Running simulation…")
-        engine = BacktestEngine()
-        result = engine.run(
-            st.session_state.candles_df,
-            st.session_state.signals_df,
-            config,
-            log_callback=log_callback,
-        )
-        progress.progress(70, text="Generating output files…")
+                    _cfg = BacktestConfig(
+                        symbols=setup.get("symbols", []),
+                        date_range={"from": setup.get("date_from"), "to": setup.get("date_to")},
+                        reverse_on_flip=setup.get("reverse_on_flip", False),
+                        candle_source_type="ctf",
+                        selected_indicator_id=ind_id,
+                    )
+                    _engine = BacktestEngine()
+                    _result = _engine.run(candles_df, signals_df, _cfg)
+                    _output_dir = os.path.join(os.path.dirname(__file__), "outputs", _cfg.run_id[:8])
+                    _paths = generate_outputs(_result, _output_dir)
+                    st.session_state.backtest_result = _result
+                    st.session_state.output_paths = _paths
+                    st.session_state.last_run_id = _cfg.run_id
+                    st.success(
+                        f"✅ Backtest complete — {len(_result.trades)} trades, "
+                        f"{_result.summary['total_pips']:+.2f} total pips. "
+                        "View results in the **Results** tab."
+                    )
+            except Exception as exc:
+                st.error(f"Failed to load bridge outputs: {exc}")
+                st.session_state.bridge_mode_active = False
 
-        output_dir = os.path.join(os.path.dirname(__file__), "outputs", config.run_id[:8])
-        paths = generate_outputs(result, output_dir)
+        elif status == "failed":
+            error = status_info["job"].get("error", "unknown") if status_info["job"] else "unknown"
+            log_tail = launcher.get_log_tail(run_id)
+            st.error(f"Bridge failed: {error}")
+            if log_tail:
+                st.code(log_tail, language=None)
+            st.session_state.bridge_mode_active = False
 
-        st.session_state.backtest_result = result
-        st.session_state.output_paths = paths
-        st.session_state.run_log = log_lines
-        st.session_state.last_run_id = config.run_id
+        else:
+            st.info(f"Bridge status: **{status}**. Waiting for MT4…")
+            log_tail = launcher.get_log_tail(run_id, 20)
+            if log_tail:
+                st.code(log_tail, language=None)
+            if st.button("Refresh Status"):
+                st.rerun()
 
-        progress.progress(100, text="Done!")
-        st.success(
-            f"✅ Backtest complete — {len(result.trades)} trades, "
-            f"{result.summary['total_pips']:+.2f} total pips. "
-            f"View results in the **Results** tab."
-        )
+    # ── Normal CSV path ───────────────────────────────────────────────────
+    elif not bridge_mode:
+        both_valid = st.session_state.candles_valid and st.session_state.signals_valid
+        if not both_valid:
+            st.warning("⚠️ Please upload and validate both candles and signals files before running.")
+        if not setup.get("symbols"):
+            st.error("No symbols selected. Go to Setup tab and select at least one symbol.")
 
-    elif st.session_state.run_log:
-        st.code("\n".join(st.session_state.run_log[-40:]), language=None)
+        run_disabled = not both_valid or not setup.get("symbols")
+        run_btn = st.button("▶️ Run Backtest", disabled=run_disabled, type="primary")
 
-    st.button("⏹ Stop", disabled=True, help="Stop functionality available in a future phase.")
+        if run_btn:
+            st.session_state.run_log = []
+            progress = st.progress(0, text="Initializing…")
+            log_box = st.empty()
+            log_lines = []
+
+            def log_callback(msg: str):
+                log_lines.append(msg)
+                log_box.code("\n".join(log_lines[-40:]), language=None)
+
+            config = BacktestConfig(
+                symbols=setup["symbols"],
+                date_range={"from": setup.get("date_from"), "to": setup.get("date_to")},
+                reverse_on_flip=setup.get("reverse_on_flip", False),
+                lot_size=setup.get("lot_size"),
+                pip_value=setup.get("pip_value"),
+                spread=setup.get("spread"),
+                commission=setup.get("commission"),
+                candle_source_type=st.session_state.candle_source_type,
+                selected_indicator_id=st.session_state.selected_indicator_id,
+            )
+
+            progress.progress(10, text="Running simulation…")
+            engine = BacktestEngine()
+            result = engine.run(
+                st.session_state.candles_df,
+                st.session_state.signals_df,
+                config,
+                log_callback=log_callback,
+            )
+            progress.progress(70, text="Generating output files…")
+
+            output_dir = os.path.join(os.path.dirname(__file__), "outputs", config.run_id[:8])
+            paths = generate_outputs(result, output_dir)
+
+            st.session_state.backtest_result = result
+            st.session_state.output_paths = paths
+            st.session_state.run_log = log_lines
+            st.session_state.last_run_id = config.run_id
+
+            progress.progress(100, text="Done!")
+            st.success(
+                f"✅ Backtest complete — {len(result.trades)} trades, "
+                f"{result.summary['total_pips']:+.2f} total pips. "
+                f"View results in the **Results** tab."
+            )
+
+        elif st.session_state.run_log:
+            st.code("\n".join(st.session_state.run_log[-40:]), language=None)
+
+        st.button("⏹ Stop", disabled=True, help="Stop functionality available in a future phase.")
 
 
 # ═══════════════════════════════════════════════════════════════════════

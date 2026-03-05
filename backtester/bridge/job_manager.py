@@ -51,6 +51,10 @@ def read_job_status(run_id: str) -> dict:
     if pending_path.exists():
         with open(pending_path, encoding="utf-8") as f:
             job = json.load(f)
+        # If runner updated status field to "running", reflect that
+        actual_status = job.get("status", "pending")
+        if actual_status == "running":
+            return {"status": "running", "job": job}
         return {"status": "pending", "job": job}
 
     return {"status": "not_found", "job": None}
@@ -73,6 +77,76 @@ def get_done_outputs(run_id: str) -> dict:
         result["normalized_signals"] = signals_path
 
     return result
+
+
+def mark_running(run_id: str) -> None:
+    """Update status field in pending JSON to 'running'."""
+    _update_pending_status(run_id, "running")
+
+
+def mark_failed(run_id: str, error: str) -> None:
+    """Write job_result.json to done/<run_id>/ with status=failed."""
+    DONE_DIR.mkdir(parents=True, exist_ok=True)
+    done_dir = DONE_DIR / run_id
+    done_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load original job if present
+    pending_path = PENDING_DIR / f"{run_id}.json"
+    job: dict = {}
+    if pending_path.exists():
+        try:
+            with open(pending_path, encoding="utf-8") as f:
+                job = json.load(f)
+        except Exception:
+            pass
+        try:
+            pending_path.unlink()
+        except Exception:
+            pass
+
+    result = {**job, "status": "failed", "error": error,
+              "completed_at": datetime.now(timezone.utc).isoformat()}
+    with open(done_dir / "job_result.json", "w", encoding="utf-8") as f:
+        json.dump(result, f, indent=2)
+
+
+def mark_done(run_id: str) -> None:
+    """Write job_result.json to done/<run_id>/ with status=done."""
+    DONE_DIR.mkdir(parents=True, exist_ok=True)
+    done_dir = DONE_DIR / run_id
+    done_dir.mkdir(parents=True, exist_ok=True)
+
+    pending_path = PENDING_DIR / f"{run_id}.json"
+    job: dict = {}
+    if pending_path.exists():
+        try:
+            with open(pending_path, encoding="utf-8") as f:
+                job = json.load(f)
+        except Exception:
+            pass
+        try:
+            pending_path.unlink()
+        except Exception:
+            pass
+
+    result = {**job, "status": "done", "error": None,
+              "completed_at": datetime.now(timezone.utc).isoformat()}
+    with open(done_dir / "job_result.json", "w", encoding="utf-8") as f:
+        json.dump(result, f, indent=2)
+
+
+def _update_pending_status(run_id: str, status: str) -> None:
+    pending_path = PENDING_DIR / f"{run_id}.json"
+    if not pending_path.exists():
+        return
+    try:
+        with open(pending_path, encoding="utf-8") as f:
+            job = json.load(f)
+        job["status"] = status
+        with open(pending_path, "w", encoding="utf-8") as f:
+            json.dump(job, f, indent=2)
+    except Exception:
+        pass
 
 
 def is_bridge_available() -> bool:
