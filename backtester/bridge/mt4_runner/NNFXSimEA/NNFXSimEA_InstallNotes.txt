@@ -1,0 +1,236 @@
+================================================================
+NNFXSimEA v2.0 — Installation & Usage Guide
+NNFX Sim EA Platform: Interactive D1 Simulation
+================================================================
+
+OVERVIEW
+--------
+NNFXSimEA is a Soft4FX-style interactive simulation platform for MT4.
+Attach it to a live D1 chart to step through historical data bar-by-bar
+with full NNFX C1 logic, manual trade entry, and statistics reporting.
+
+================================================================
+INSTALLATION
+================================================================
+
+1. DEPLOY WITH SCRIPT (Recommended)
+   - Open Command Prompt
+   - Navigate to: backtester\bridge\mt4_runner\NNFXSimEA\
+   - Run: deploy.bat
+   - Or with custom MT4 path: deploy.bat "C:\path\to\MT4\DataFolder"
+
+   Default MT4 data path:
+   C:\Users\win10pro\AppData\Roaming\MetaQuotes\Terminal\98A82F92176B73A2100FCD1F8ABD7255
+
+2. MANUAL INSTALL
+   Copy these files to your MT4 data folder:
+
+   NNFXSimEA.mq4
+     → <MT4_DATA>\MQL4\Experts\NNFXSimEA.mq4
+
+   include\nnfx\persistence.mqh
+     → <MT4_DATA>\MQL4\Include\nnfx\persistence.mqh
+
+   include\nnfx\indicator_engine.mqh
+     → <MT4_DATA>\MQL4\Include\nnfx\indicator_engine.mqh
+
+   include\nnfx\trade_engine.mqh
+     → <MT4_DATA>\MQL4\Include\nnfx\trade_engine.mqh
+
+   include\nnfx\stats_engine.mqh
+     → <MT4_DATA>\MQL4\Include\nnfx\stats_engine.mqh
+
+   include\nnfx\report_exporter.mqh
+     → <MT4_DATA>\MQL4\Include\nnfx\report_exporter.mqh
+
+   include\nnfx\replay_engine.mqh
+     → <MT4_DATA>\MQL4\Include\nnfx\replay_engine.mqh
+
+   include\nnfx\ui_manager.mqh
+     → <MT4_DATA>\MQL4\Include\nnfx\ui_manager.mqh
+
+   include\nnfx\state_machine.mqh
+     → <MT4_DATA>\MQL4\Include\nnfx\state_machine.mqh
+
+3. COMPILE
+   - Open MetaEditor (MT4: Tools > MetaEditor or F4)
+   - Navigate to: Experts > NNFXSimEA.mq4
+   - Press F7 to compile
+   - MUST show: 0 errors (warnings are acceptable)
+
+4. ATTACH
+   - Open a D1 chart for your desired symbol
+   - Drag NNFXSimEA from Navigator panel to the chart
+   - The Launcher screen appears
+
+================================================================
+USAGE — LIVE CHART
+================================================================
+
+SCREEN FLOW:
+  Launcher → New Simulation → Workspace → HUD (running) → Stats
+
+LAUNCHER SCREEN
+  [New Simulation]  — Configure and start a new sim session
+  [Load Session]    — Load last saved preset into workspace
+  [Data Center]     — View/manage symbol data
+
+NEW SIMULATION SCREEN
+  Symbol            — Trading symbol (e.g. EURUSD)
+  Balance           — Starting balance for the simulation
+  Start Date        — Sim start date (YYYY.MM.DD)
+  End Date          — Sim end date (YYYY.MM.DD)
+  Spread Mode       — 0 = fixed spread, 1 = use current market spread
+  Fixed Spread      — Spread in pips (used when Spread Mode = 0)
+  Commission RT     — Round-turn commission per lot in account currency
+  Leverage          — Account leverage
+
+  [Start]           — Proceed to Indicator Workspace
+  [Save]            — Save config as preset (nnfx_sim/presets/last_preset.ini)
+  [Load]            — Load last saved preset
+  [Back]            — Return to Launcher
+
+WORKSPACE SCREEN
+  Indicator         — Custom indicator filename (no .ex4 extension)
+  Params            — Comma-separated input values (e.g. 14,3,1,true)
+  Param Types       — Comma-separated type tokens: int, double, bool, string
+  Signal Type       — CROSS (two-line MA), ZERO (zero-line cross), STATE (state change)
+  Fast/Buy Buf      — Buffer index for fast MA or buy signal
+  Slow/Sell Buf     — Buffer index for slow MA or sell signal
+  Buy Threshold     — Threshold for zero-cross buy signal
+  SL Mode           — 0 = fixed pips, 1 = ATR multiple
+  ATR Mult          — ATR multiplier for stop loss (default 1.5)
+  Risk:Reward       — Risk:Reward ratio for take profit (default 1.5)
+  Risk %            — Percentage of balance risked per trade (default 1.0)
+
+  STATE signal type expansion shows:
+  Buy Rule          — STATE_TO_POSITIVE / TO_NEGATIVE / ABOVE_LEVEL / BELOW_LEVEL
+  Sell Rule         — Same options (cycles on click)
+  State Level       — Level for ABOVE/BELOW_LEVEL rules
+
+  [Validate]        — Parse params and count signals over last 200 bars
+  [Lock & Launch]   — Lock config, write snapshot, start simulation
+  [Back]            — Return to New Simulation
+
+HUD SCREEN (running)
+  Time / Equity / P&L / Shift labels update each bar
+  Playback controls: |< PREV, PLAY, PAUSE, NEXT >|, AUTO
+  Speed - / Speed +  — Adjust auto-step interval
+  Lot / SL / TP     — Manual trade parameters (pips)
+  [BUY] [SELL]      — Open manual trade
+  [CLOSE ALL]       — Close all open positions
+  [Stats Panel]     — Switch to Statistics screen
+
+STATS SCREEN
+  Shows: Total Trades, Wins/Losses, Win Rate, Total Pips,
+         Avg Pips/Trade, Max Drawdown, Expectancy,
+         Avg Spread, Total Commission, Session ID
+  [Trades CSV] [Signals CSV] [Summary CSV] — Export CSV reports
+  [Back]       — Return to HUD
+
+================================================================
+KEYBOARD HOTKEYS (Live Chart Only)
+================================================================
+
+  Space           Play / Pause toggle
+  Right Arrow     Step forward one bar
+  Left Arrow      Step back one bar
+  +  (numpad +)   Speed up auto-play
+  -  (numpad -)   Speed down auto-play
+  A               Toggle Auto-trade mode ON/OFF
+  X               Close all open positions
+
+================================================================
+STRATEGY TESTER FALLBACK (TesterCmd Input)
+================================================================
+
+The OnChartEvent button click is unreliable in Strategy Tester
+visual mode (MT4 limitation). Use the TesterCmd input parameter
+instead.
+
+In Strategy Tester > Inputs tab, set TesterCmd to:
+  PLAY       — Resume auto-step (same as Play button)
+  PAUSE      — Pause auto-step
+  NEXT       — Step forward one bar
+  PREV       — Step back one bar
+  FASTER     — Speed up auto-play
+  SLOWER     — Slow down auto-play
+  AUTO_ON    — Enable auto-trade mode
+  AUTO_OFF   — Disable auto-trade mode
+  CLOSE_ALL  — Close all open positions
+
+Change the TesterCmd value each time to trigger the command.
+(The EA polls for changes — same value twice has no effect.)
+
+================================================================
+INDICATOR PARAMETER TYPES
+================================================================
+
+Type tokens (case-insensitive):
+  int     — Integer value       e.g. 14
+  double  — Floating point      e.g. 1.5
+  bool    — Boolean             e.g. true or false (or 1/0)
+  string  — String value        e.g. MODE_SMA
+
+Example (3 inputs: period=14, mode=0, price=close=6):
+  Params:      14,0,6
+  Param Types: int,int,int
+
+Example with bool:
+  Params:      14,3,1,true,0.5
+  Param Types: int,int,int,bool,double
+
+IMPORTANT: Indicators requiring more than 8 input parameters
+cannot be called directly by NNFXSimEA. Solution: create a
+wrapper indicator that exposes the needed parameters as the
+first N inputs and hard-codes the rest.
+
+================================================================
+FILE PATHS (written at runtime)
+================================================================
+
+All files written to: <MT4_Common>\Files\nnfx_sim\
+
+Sessions:   nnfx_sim/sessions/<session_id>.ini
+Snapshots:  nnfx_sim/sessions/<session_id>_snapshot.ini
+Presets:    nnfx_sim/presets/<preset_name>.ini
+Logs:       nnfx_sim/logs/<session_id>_transitions.csv
+Reports:    nnfx_sim/reports/<session_id>_signals.csv
+            nnfx_sim/reports/<session_id>_trades.csv
+            nnfx_sim/reports/<session_id>_summary.csv
+
+MT4 Common Files folder (typical):
+  C:\Users\<user>\AppData\Roaming\MetaQuotes\Terminal\Common\Files\
+
+================================================================
+STATE MACHINE STATES
+================================================================
+
+  IDLE -> CONFIG_NEW -> WORKSPACE_TWEAK -> READY_TO_RUN
+       -> SIM_RUNNING <-> SIM_PAUSED -> SIM_FINISHED -> IDLE
+       -> ERROR_STATE (from any state)
+       -> CONFIG_LOADED (Load Session path)
+
+Every transition is logged to: nnfx_sim/logs/<session_id>_transitions.csv
+
+================================================================
+PHASE GATES (Development Reference)
+================================================================
+
+  PhaseA_pass  — Screens + State Machine + Persistence
+  PhaseB_pass  — Indicator Workspace + Signal Validation
+  PhaseC_pass  — Replay HUD + Manual Trades + Sim Clock
+  PhaseD_pass  — C1 Auto Execution
+  PhaseE_pass  — Stats Panel + CSV Export
+
+Tag applied after 0 compile errors + acceptance tests pass.
+
+================================================================
+SUPPORT & ISSUES
+================================================================
+
+Source repository: backtester/bridge/mt4_runner/NNFXSimEA/
+Compile target:    NNFXSimEA.mq4 (MQL4, #property strict)
+MT4 version:       Build 1320+ recommended
+
+================================================================
