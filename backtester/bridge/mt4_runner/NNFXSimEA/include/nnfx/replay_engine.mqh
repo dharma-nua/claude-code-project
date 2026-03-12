@@ -23,17 +23,9 @@ bool   g_RE_AutoMode       = false;   // Auto-trade on each step
 datetime g_RE_StartTime    = 0;
 datetime g_RE_EndTime      = 0;
 
-// Forward declarations
+// Forward declarations — these are defined in files included after replay_engine.mqh
 void SM_Transition(int newState, string reason);
 void UI_UpdateHUD();
-void TradeEngine_OnBar(string sym, int tf, int shift);
-void TradeEngine_CheckForNaturalClose(string sym);
-void TradeEngine_CloseAll(string sym);
-int  IndEngine_GetSignal(string sym, int tf, int shift);
-void ReportExporter_WriteSignalRow(int shift, int signal, int sigType,
-                                    double buf1, double buf2,
-                                    double spreadPips, datetime barTime, string note);
-double TradeEngine_GetSpreadPips(string sym);
 
 //+------------------------------------------------------------------+
 void RE_Init()

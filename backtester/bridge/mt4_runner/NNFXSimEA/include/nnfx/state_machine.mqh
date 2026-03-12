@@ -120,10 +120,6 @@ void SM_Transition(int newState, string reason)
 }
 
 //+------------------------------------------------------------------+
-// Forward declaration
-void TradeEngine_CheckForNaturalClose(string sym);
-
-//+------------------------------------------------------------------+
 void SM_OnTick()
 {
     // Detect SL/TP closes fired by live price ticks between bar steps

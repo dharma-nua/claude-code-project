@@ -41,23 +41,8 @@ int    g_UI_StateBuyRule   = 0;   // STATE_RULE index
 int    g_UI_StateSellRule  = 1;
 string g_UI_StateRuleNames[4];
 
-// Forward declarations for functions called from UI
+// Forward declaration — SM_Transition is defined in state_machine.mqh (included after this file)
 void SM_Transition(int newState, string reason);
-void Persistence_SavePreset(string name);
-void Persistence_LoadPreset(string name);
-bool IndEngine_ParseParams(string vals, string types);
-string IndEngine_GetParamsStatus();
-void IndEngine_SetConfig(string name, string paramValStr, string paramTypeStr,
-                          int sigType, int fastBuf, int slowBuf,
-                          double buyThresh, double sellThresh,
-                          int stateBuyRule, int stateSellRule, double stateLevel);
-bool IndEngine_Validate(string sym, int tf, int fromShift, int toShift, int &b, int &s);
-void RE_ToggleAuto();
-void TradeEngine_ManualBuy(string sym, double lots, double sl, double tp);
-void TradeEngine_ManualSell(string sym, double lots, double sl, double tp);
-void TradeEngine_CloseAll(string sym);
-void ReportExporter_FlushAll();
-void UI_StatsTabSwitch(string objName);
 
 //+------------------------------------------------------------------+
 void UI_Init()
