@@ -15,8 +15,8 @@
 #define RE_SPEED_TURBO   100
 
 int    g_RE_CursorShift    = 0;       // Bars back from bar 0
-int    g_RE_StartShift     = 0;       // Initial shift when sim started
-int    g_RE_MaxShift       = 1000;    // Max bars back allowed
+int    g_RE_StartShift     = 0;       // Shift at sim start date
+int    g_RE_EndShift       = 1;       // Shift at sim end date (stop here)
 int    g_RE_StepIntervalMs = RE_SPEED_MEDIUM;
 bool   g_RE_Running        = false;
 bool   g_RE_AutoMode       = false;   // Auto-trade on each step
@@ -34,14 +34,15 @@ void RE_Init()
 }
 
 //+------------------------------------------------------------------+
-// Start replay from a given shift (bars back from current bar 0)
-void RE_Start(int startShift)
+// Start replay between startShift and endShift (both bars-back from bar 0)
+void RE_Start(int startShift, int endShift)
 {
     g_RE_CursorShift = startShift;
     g_RE_StartShift  = startShift;
+    g_RE_EndShift    = MathMax(endShift, 1);
     g_RE_Running     = true;
 
-    // Draw VLine cursor
+    // Draw VLine cursor at start date
     string sym = Symbol();
     datetime barTime = iTime(sym, PERIOD_D1, g_RE_CursorShift);
     if(ObjectFind(0, RE_VLINE_OBJ) >= 0)
@@ -51,13 +52,15 @@ void RE_Start(int startShift)
     ObjectSetInteger(0, RE_VLINE_OBJ, OBJPROP_WIDTH, 2);
     ObjectSetInteger(0, RE_VLINE_OBJ, OBJPROP_STYLE, STYLE_DASH);
 
-    // Disable chart autoscroll
+    // Scroll chart to show start date (paused, not autoscrolling)
     ChartSetInteger(0, CHART_AUTOSCROLL, false);
+    ChartNavigate(0, CHART_END, startShift + 20);
 
     // Start timer
     EventSetMillisecondTimer(g_RE_StepIntervalMs);
 
-    Print("RE_Start: shift=", startShift, " time=", TimeToString(barTime));
+    Print("RE_Start: startShift=", startShift, " endShift=", g_RE_EndShift,
+          " time=", TimeToString(barTime));
 }
 
 //+------------------------------------------------------------------+
@@ -107,25 +110,25 @@ void _RE_UpdateVLine()
 //+------------------------------------------------------------------+
 void RE_StepForward()
 {
-    if(g_RE_CursorShift <= 1)
+    if(g_RE_CursorShift <= g_RE_EndShift)
     {
-        // Reached end
-        SM_Transition(7, "ReachedEndOfData");  // SIM_FINISHED=7
+        SM_Transition(7, "ReachedEndDate");  // SIM_FINISHED=7
         RE_Pause();
         return;
     }
 
     g_RE_CursorShift--;
+    TradeEngine_SetSimShift(g_RE_CursorShift);
     _RE_UpdateVLine();
 
-    // Detect SL/TP closes that fired during the previous bar
-    TradeEngine_CheckForNaturalClose(Symbol());
+    // Check if this bar hits SL or TP on open virtual position
+    TradeEngine_CheckBarClose(Symbol(), g_RE_CursorShift);
 
     // Log signal for this bar to CSV (auto and manual modes)
     int stepSig = IndEngine_GetSignal(Symbol(), PERIOD_D1, g_RE_CursorShift);
     if(stepSig != 0)
     {
-        datetime barTime   = iTime(Symbol(), PERIOD_D1, g_RE_CursorShift);
+        datetime barTime    = iTime(Symbol(), PERIOD_D1, g_RE_CursorShift);
         double   spreadPips = TradeEngine_GetSpreadPips(Symbol());
         ReportExporter_WriteSignalRow(g_RE_CursorShift, stepSig, g_IE_SigType,
                                       0.0, 0.0, spreadPips, barTime, "");

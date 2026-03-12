@@ -92,11 +92,17 @@ void SM_Transition(int newState, string reason)
         ObjectSetInteger(0, UI_PREFIX+"NEWSIM.EDIT.START_DATE",   OBJPROP_READONLY, true);
         ObjectSetInteger(0, UI_PREFIX+"NEWSIM.EDIT.END_DATE",     OBJPROP_READONLY, true);
 
-        // Start replay
-        int totalBars = iBars(g_CFG_Symbol, PERIOD_D1);
-        int startShift = totalBars - 2;
-        if(startShift < 1) startShift = 1;
-        RE_Start(startShift);
+        // Calculate bar shifts from configured date range
+        datetime startDT = StringToTime(g_CFG_StartDate);
+        datetime endDT   = StringToTime(g_CFG_EndDate);
+        int startShift   = iBarShift(g_CFG_Symbol, PERIOD_D1, startDT, false);
+        int endShift     = iBarShift(g_CFG_Symbol, PERIOD_D1, endDT,   false);
+        if(startShift < 2)  startShift = 2;
+        if(endShift   < 1)  endShift   = 1;
+        if(endShift >= startShift) endShift = startShift - 1;
+        Print("SM: date range shift=", startShift, "->", endShift,
+              " (", g_CFG_StartDate, " -> ", g_CFG_EndDate, ")");
+        RE_Start(startShift, endShift);
 
         // Setup trade/stats/reports
         TradeEngine_Init(g_CFG_Balance);
@@ -122,9 +128,7 @@ void SM_Transition(int newState, string reason)
 //+------------------------------------------------------------------+
 void SM_OnTick()
 {
-    // Detect SL/TP closes fired by live price ticks between bar steps
-    if(g_SM_State == SM_SIM_RUNNING || g_SM_State == SM_SIM_PAUSED)
-        TradeEngine_CheckForNaturalClose(Symbol());
+    // SL/TP detection is handled per bar in RE_StepForward (virtual engine)
 }
 
 //+------------------------------------------------------------------+
