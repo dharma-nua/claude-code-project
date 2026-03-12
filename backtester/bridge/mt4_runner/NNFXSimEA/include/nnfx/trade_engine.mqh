@@ -57,6 +57,7 @@ void StatsEngine_OnTradeOpen(int ticket, int type, double lots, double entryPric
 void StatsEngine_OnTradeClose(int ticket, double exitPrice, double pnlPips,
                                double spreadPips, double commission,
                                datetime exitTime, string closeReason);
+void StatsEngine_SetMaxDD(double dd);
 void ReportExporter_WriteTradeRow(string event, int ticket, int type, double lots,
                                    double price, double sl, double tp,
                                    double slPips, double tpPips,
@@ -336,6 +337,7 @@ void TradeEngine_ClosePosition(string sym, string reason)
     if(g_TE_SimBalance > g_TE_PeakBalance) g_TE_PeakBalance = g_TE_SimBalance;
     double dd = (g_TE_PeakBalance - g_TE_SimBalance) / g_TE_PeakBalance * 100.0;
     if(dd > g_TE_MaxDD) g_TE_MaxDD = dd;
+    StatsEngine_SetMaxDD(g_TE_MaxDD);
 
     StatsEngine_OnTradeClose(g_TE_OpenTicket, closePrice, pnlPips,
                               g_TE_OpenSpreadPips, commission,
@@ -476,6 +478,7 @@ void TradeEngine_CheckForNaturalClose(string sym)
     double dd = (g_TE_PeakBalance > 0)
               ? (g_TE_PeakBalance - g_TE_SimBalance) / g_TE_PeakBalance * 100.0 : 0.0;
     if(dd > g_TE_MaxDD) g_TE_MaxDD = dd;
+    StatsEngine_SetMaxDD(g_TE_MaxDD);
 
     StatsEngine_OnTradeClose(g_TE_OpenTicket, closePrice, pnlPips,
                               g_TE_OpenSpreadPips, commission,

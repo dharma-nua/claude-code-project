@@ -145,4 +145,11 @@ void StatsEngine_GetSummary(int &totalTrades, int &wins, int &losses,
     expectancy     = wr * avgWin - (1.0 - wr) * avgLoss;
 }
 
+//+------------------------------------------------------------------+
+// Sync max drawdown from trade engine (called after every close)
+void StatsEngine_SetMaxDD(double dd)
+{
+    if(dd > g_SE_MaxDD) g_SE_MaxDD = dd;
+}
+
 #endif // NNFX_STATS_ENGINE_MQH

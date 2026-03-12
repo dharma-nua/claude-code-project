@@ -50,10 +50,11 @@ void ReportExporter_Init(string sessionId)
 //+------------------------------------------------------------------+
 void ReportExporter_WriteSignalRow(int shift, int signal, int sigType,
                                     double buf1, double buf2,
-                                    double spreadPips, string note)
+                                    double spreadPips, datetime barTime, string note)
 {
     if(g_RE_SignalH == INVALID_HANDLE) return;
-    string ts  = TimeToString(TimeCurrent(), TIME_DATE | TIME_MINUTES);
+    string ts  = (barTime > 0) ? TimeToString(barTime, TIME_DATE | TIME_MINUTES)
+                               : TimeToString(TimeCurrent(), TIME_DATE | TIME_MINUTES);
     string sym = Symbol();
     FileWrite(g_RE_SignalH,
         g_RE_SessionId,
@@ -124,7 +125,9 @@ void ReportExporter_WriteSummary()
 void ReportExporter_FlushAll()
 {
     ReportExporter_WriteSummary();
-    // Flush by closing and reopening in append mode — or just leave open
+    if(g_RE_SignalH  != INVALID_HANDLE) FileFlush(g_RE_SignalH);
+    if(g_RE_TradeH   != INVALID_HANDLE) FileFlush(g_RE_TradeH);
+    if(g_RE_SummaryH != INVALID_HANDLE) FileFlush(g_RE_SummaryH);
     Print("ReportExporter: Flushed all reports for session ", g_RE_SessionId);
 }
 

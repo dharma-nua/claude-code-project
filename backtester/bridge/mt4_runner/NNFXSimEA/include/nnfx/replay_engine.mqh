@@ -28,6 +28,12 @@ void SM_Transition(int newState, string reason);
 void UI_UpdateHUD();
 void TradeEngine_OnBar(string sym, int tf, int shift);
 void TradeEngine_CheckForNaturalClose(string sym);
+void TradeEngine_CloseAll(string sym);
+int  IndEngine_GetSignal(string sym, int tf, int shift);
+void ReportExporter_WriteSignalRow(int shift, int signal, int sigType,
+                                    double buf1, double buf2,
+                                    double spreadPips, datetime barTime, string note);
+double TradeEngine_GetSpreadPips(string sym);
 
 //+------------------------------------------------------------------+
 void RE_Init()
@@ -125,6 +131,16 @@ void RE_StepForward()
 
     // Detect SL/TP closes that fired during the previous bar
     TradeEngine_CheckForNaturalClose(Symbol());
+
+    // Log signal for this bar to CSV (auto and manual modes)
+    int stepSig = IndEngine_GetSignal(Symbol(), PERIOD_D1, g_RE_CursorShift);
+    if(stepSig != 0)
+    {
+        datetime barTime   = iTime(Symbol(), PERIOD_D1, g_RE_CursorShift);
+        double   spreadPips = TradeEngine_GetSpreadPips(Symbol());
+        ReportExporter_WriteSignalRow(g_RE_CursorShift, stepSig, g_IE_SigType,
+                                      0.0, 0.0, spreadPips, barTime, "");
+    }
 
     // Auto-trade
     if(g_RE_AutoMode)
