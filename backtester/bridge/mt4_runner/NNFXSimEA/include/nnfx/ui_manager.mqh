@@ -41,8 +41,6 @@ int    g_UI_StateBuyRule   = 0;   // STATE_RULE index
 int    g_UI_StateSellRule  = 1;
 string g_UI_StateRuleNames[4];
 
-// Forward declaration — SM_Transition is defined in state_machine.mqh (included after this file)
-void SM_Transition(int newState, string reason);
 
 //+------------------------------------------------------------------+
 void UI_Init()

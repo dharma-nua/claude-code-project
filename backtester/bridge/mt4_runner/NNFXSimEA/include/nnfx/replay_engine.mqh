@@ -23,9 +23,6 @@ bool   g_RE_AutoMode       = false;   // Auto-trade on each step
 datetime g_RE_StartTime    = 0;
 datetime g_RE_EndTime      = 0;
 
-// Forward declarations — these are defined in files included after replay_engine.mqh
-void SM_Transition(int newState, string reason);
-void UI_UpdateHUD();
 
 //+------------------------------------------------------------------+
 void RE_Init()

@@ -50,18 +50,6 @@ double g_TE_PeakBalance    = 10000.0;
 double g_TE_MaxDD          = 0.0;
 
 //+------------------------------------------------------------------+
-// Forward declarations
-void StatsEngine_OnTradeOpen(int ticket, int type, double lots, double entryPrice,
-                              double slPips, double tpPips, double spreadPips,
-                              datetime entryTime);
-void StatsEngine_OnTradeClose(int ticket, double exitPrice, double pnlPips,
-                               double spreadPips, double commission,
-                               datetime exitTime, string closeReason);
-void StatsEngine_SetMaxDD(double dd);
-void ReportExporter_WriteTradeRow(string event, int ticket, int type, double lots,
-                                   double price, double sl, double tp,
-                                   double slPips, double tpPips,
-                                   double spreadPips, double commission);
 
 //+------------------------------------------------------------------+
 void TradeEngine_Init(double startingBalance)
