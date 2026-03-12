@@ -421,6 +421,79 @@ void TradeEngine_OnBar(string sym, int tf, int shift)
 }
 
 //+------------------------------------------------------------------+
+// Detect trades closed naturally by MT4 (SL/TP hit) and record them.
+// Call once per bar step before auto-trade logic.
+void TradeEngine_CheckForNaturalClose(string sym)
+{
+    if(g_TE_OpenTicket < 0) return;
+
+    // Still in active order pool?
+    for(int i = OrdersTotal() - 1; i >= 0; i--)
+    {
+        if(!OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) continue;
+        if(OrderTicket() == g_TE_OpenTicket) return;   // Still open — nothing to do
+    }
+
+    // Not active — pull from history
+    if(!OrderSelect(g_TE_OpenTicket, SELECT_BY_TICKET))
+    {
+        Print("TradeEngine: NaturalClose — ticket not in history, clearing. ticket=", g_TE_OpenTicket);
+        g_TE_OpenTicket     = -1;
+        g_TE_OpenType       = -1;
+        g_TE_OpenLots       = 0.0;
+        g_TE_OpenEntryPrice = 0.0;
+        return;
+    }
+
+    double closePrice = OrderClosePrice();
+    datetime closeTime = OrderCloseTime();
+
+    // Infer close reason by proximity to SL/TP
+    string closeReason = "Natural";
+    double sl = OrderStopLoss();
+    double tp = OrderTakeProfit();
+    int    d  = (int)MarketInfo(sym, MODE_DIGITS);
+    double tol = Point * (d == 3 || d == 5 ? 10 : 1) * 2;
+    if(sl > 0 && MathAbs(closePrice - sl) <= tol) closeReason = "SL";
+    else if(tp > 0 && MathAbs(closePrice - tp) <= tol) closeReason = "TP";
+
+    // P&L in pips
+    double pipSize = _TE_PipSize(sym);
+    double pnlPips = (g_TE_OpenType == OP_BUY)
+                   ? (closePrice - g_TE_OpenEntryPrice) / pipSize
+                   : (g_TE_OpenEntryPrice - closePrice) / pipSize;
+
+    // Commission
+    double pipValue = MarketInfo(sym, MODE_TICKVALUE);
+    if(d == 3 || d == 5) pipValue *= 10.0;
+    double commission = (pipValue > 0 && g_TE_CommissionRT > 0)
+                      ? g_TE_CommissionRT * g_TE_OpenLots : 0.0;
+
+    // Update sim balance
+    double profit = OrderProfit() + OrderSwap() + OrderCommission();
+    g_TE_SimBalance += profit - commission;
+    if(g_TE_SimBalance > g_TE_PeakBalance) g_TE_PeakBalance = g_TE_SimBalance;
+    double dd = (g_TE_PeakBalance > 0)
+              ? (g_TE_PeakBalance - g_TE_SimBalance) / g_TE_PeakBalance * 100.0 : 0.0;
+    if(dd > g_TE_MaxDD) g_TE_MaxDD = dd;
+
+    StatsEngine_OnTradeClose(g_TE_OpenTicket, closePrice, pnlPips,
+                              g_TE_OpenSpreadPips, commission,
+                              closeTime, closeReason);
+    ReportExporter_WriteTradeRow("CLOSE", g_TE_OpenTicket, g_TE_OpenType,
+                                  g_TE_OpenLots, closePrice, sl, tp,
+                                  0, 0, g_TE_OpenSpreadPips, commission);
+
+    Print(StringFormat("TE NaturalClose: ticket=%d reason=%s price=%.5f pnlPips=%.2f bal=%.2f",
+          g_TE_OpenTicket, closeReason, closePrice, pnlPips, g_TE_SimBalance));
+
+    g_TE_OpenTicket     = -1;
+    g_TE_OpenType       = -1;
+    g_TE_OpenLots       = 0.0;
+    g_TE_OpenEntryPrice = 0.0;
+}
+
+//+------------------------------------------------------------------+
 // Manual trade from HUD
 void TradeEngine_ManualBuy(string sym, double manualLots, double manualSL, double manualTP)
 {

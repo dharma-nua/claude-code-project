@@ -120,9 +120,15 @@ void SM_Transition(int newState, string reason)
 }
 
 //+------------------------------------------------------------------+
+// Forward declaration
+void TradeEngine_CheckForNaturalClose(string sym);
+
+//+------------------------------------------------------------------+
 void SM_OnTick()
 {
-    // Tick-level logic per state (currently no-op; timer drives replay)
+    // Detect SL/TP closes fired by live price ticks between bar steps
+    if(g_SM_State == SM_SIM_RUNNING || g_SM_State == SM_SIM_PAUSED)
+        TradeEngine_CheckForNaturalClose(Symbol());
 }
 
 //+------------------------------------------------------------------+

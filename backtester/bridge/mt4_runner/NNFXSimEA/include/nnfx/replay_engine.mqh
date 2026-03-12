@@ -27,6 +27,7 @@ datetime g_RE_EndTime      = 0;
 void SM_Transition(int newState, string reason);
 void UI_UpdateHUD();
 void TradeEngine_OnBar(string sym, int tf, int shift);
+void TradeEngine_CheckForNaturalClose(string sym);
 
 //+------------------------------------------------------------------+
 void RE_Init()
@@ -121,6 +122,9 @@ void RE_StepForward()
 
     g_RE_CursorShift--;
     _RE_UpdateVLine();
+
+    // Detect SL/TP closes that fired during the previous bar
+    TradeEngine_CheckForNaturalClose(Symbol());
 
     // Auto-trade
     if(g_RE_AutoMode)
