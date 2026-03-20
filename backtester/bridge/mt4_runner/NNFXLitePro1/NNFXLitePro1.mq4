@@ -9,6 +9,7 @@
 
 #include <NNFXLite/global_vars.mqh>
 #include <NNFXLite/bar_feeder.mqh>
+#include <NNFXLite/signal_engine.mqh>
 
 extern string   SourceSymbol      = "EURUSD";
 extern string   SimSymbol         = "EURUSD_SIM";
@@ -47,16 +48,20 @@ int OnInit()
     Print("[NNFXLitePro1] Bar feeder ready. Total bars=", BF_GetTotalBars(),
           " Speed=", BF_GetSpeedLevel(), " (", BF_GetSpeedMs(), "ms)");
 
-    // TEMP TEST: Feed 5 bars to verify bar_feeder
-    for(int i = 0; i < 5; i++)
+    SE_Init(SimSymbol, C1_IndicatorName, C1_Mode,
+            C1_FastBuffer, C1_SlowBuffer,
+            C1_SignalBuffer, C1_CrossLevel,
+            C1_HistBuffer, C1_HistDualBuffer, C1_HistBuyBuffer, C1_HistSellBuffer,
+            C1_ParamValues, C1_ParamTypes);
+
+    // TEMP TEST: Feed 30 bars and check signals
+    for(int i = 0; i < 30; i++)
     {
-        if(!BF_FeedNextBar())
-        {
-            Print("[TEST] No more bars at iteration ", i);
-            break;
-        }
-        Print("[TEST] Fed bar ", BF_GetCurrentBarNum(),
-              " Date=", TimeToStr(BF_GetCurrentDate(), TIME_DATE));
+        if(!BF_FeedNextBar()) break;
+        if(i < 2) continue; // need at least 2 bars for crossover detection
+        int sig = SE_GetSignal();
+        if(sig != 0)
+            Print("[TEST] Bar ", i+1, " Signal=", (sig > 0 ? "BUY" : "SELL"));
     }
     // END TEMP TEST
 
