@@ -8,6 +8,7 @@
 #property strict
 
 #include <NNFXLite/global_vars.mqh>
+#include <NNFXLite/bar_feeder.mqh>
 
 // Speed timer intervals in milliseconds (index 0=slowest, 4=fastest)
 int g_SpeedIntervals[5] = {2000, 800, 300, 100, 30};
@@ -40,6 +41,28 @@ int OnInit()
     if(DefaultSpeed < 1) DefaultSpeed = 1;
     if(DefaultSpeed > 5) DefaultSpeed = 5;
     Print("[NNFXLitePro1] EA initialized (stub). Source=", SourceSymbol, " Sim=", SimSymbol);
+
+    if(!BF_Init(SourceSymbol, SimSymbol, TestStartDate, TestEndDate, DefaultSpeed))
+    {
+        Print("[NNFXLitePro1] INIT FAILED: bar feeder init failed.");
+        return INIT_FAILED;
+    }
+    Print("[NNFXLitePro1] Bar feeder ready. Total bars=", BF_GetTotalBars(),
+          " Speed=", BF_GetSpeedLevel(), " (", BF_GetSpeedMs(), "ms)");
+
+    // TEMP TEST: Feed 5 bars to verify bar_feeder
+    for(int i = 0; i < 5; i++)
+    {
+        if(!BF_FeedNextBar())
+        {
+            Print("[TEST] No more bars at iteration ", i);
+            break;
+        }
+        Print("[TEST] Fed bar ", BF_GetCurrentBarNum(),
+              " Date=", TimeToStr(BF_GetCurrentDate(), TIME_DATE));
+    }
+    // END TEMP TEST
+
     return INIT_SUCCEEDED;
 }
 
