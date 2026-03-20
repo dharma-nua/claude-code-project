@@ -10,9 +10,6 @@
 #include <NNFXLite/global_vars.mqh>
 #include <NNFXLite/bar_feeder.mqh>
 
-// Speed timer intervals in milliseconds (index 0=slowest, 4=fastest)
-int g_SpeedIntervals[5] = {2000, 800, 300, 100, 30};
-
 extern string   SourceSymbol      = "EURUSD";
 extern string   SimSymbol         = "EURUSD_SIM";
 extern datetime TestStartDate     = D'2021.01.01';
