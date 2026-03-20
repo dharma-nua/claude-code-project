@@ -9,12 +9,15 @@
 
 #include <NNFXLite/global_vars.mqh>
 
+// Speed timer intervals in milliseconds (index 0=slowest, 4=fastest)
+int g_SpeedIntervals[5] = {2000, 800, 300, 100, 30};
+
 extern string   SourceSymbol      = "EURUSD";
 extern string   SimSymbol         = "EURUSD_SIM";
 extern datetime TestStartDate     = D'2021.01.01';
 extern datetime TestEndDate       = D'2023.12.31';
 extern double   StartingBalance   = 10000.0;
-extern int      DefaultSpeed      = 3;
+extern int      DefaultSpeed      = 3;  // Speed level 1-5 (1=slowest 2s/bar, 5=fastest 30ms/bar)
 extern double   RiskPercent       = 0.02;
 extern int      ATR_Period        = 14;
 extern double   ATR_SL_Multiplier = 1.5;
@@ -29,11 +32,13 @@ extern int      C1_HistBuffer     = 0;
 extern bool     C1_HistDualBuffer = false;
 extern int      C1_HistBuyBuffer  = 0;
 extern int      C1_HistSellBuffer = 1;
-extern string   C1_ParamValues    = "";
-extern string   C1_ParamTypes     = "";
+extern string   C1_ParamValues    = "";  // comma-separated values: e.g. "14,0.5,true"
+extern string   C1_ParamTypes     = "";  // comma-separated types:  e.g. "int,double,bool"
 
 int OnInit()
 {
+    if(DefaultSpeed < 1) DefaultSpeed = 1;
+    if(DefaultSpeed > 5) DefaultSpeed = 5;
     Print("[NNFXLitePro1] EA initialized (stub). Source=", SourceSymbol, " Sim=", SimSymbol);
     return INIT_SUCCEEDED;
 }

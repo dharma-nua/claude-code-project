@@ -7,11 +7,14 @@
 #property version   "1.00"
 #property strict
 #property indicator_chart_window
+#property indicator_buffers 0
 
 #include <NNFXLite/global_vars.mqh>
 
 int OnInit()
 {
+    // Panel is the READ-ONLY side of the GV bridge.
+    // Do NOT call GV_InitAll() or GV_DeleteAll() from here — that is the EA's responsibility.
     IndicatorShortName("NNFXLitePanel");
     Print("[NNFXLitePanel] Indicator initialized (stub).");
     return INIT_SUCCEEDED;

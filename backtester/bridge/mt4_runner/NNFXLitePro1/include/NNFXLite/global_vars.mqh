@@ -32,12 +32,21 @@
 #define NNFXLP_CMD_SLOWER  5
 #define NNFXLP_CMD_STOP    6
 
-int GV_SpeedIntervals[5] = {2000, 800, 300, 100, 30};
-
 void GV_SetInt(string name, int value)    { GlobalVariableSet(name, (double)value); }
 int  GV_GetInt(string name)               { if(!GlobalVariableCheck(name)) return 0; return (int)GlobalVariableGet(name); }
 void GV_SetDouble(string name, double value) { GlobalVariableSet(name, value); }
 double GV_GetDouble(string name)          { if(!GlobalVariableCheck(name)) return 0.0; return GlobalVariableGet(name); }
+
+void GV_SetDatetime(string name, datetime value)
+{
+    GlobalVariableSet(name, (double)value);
+}
+
+datetime GV_GetDatetime(string name)
+{
+    if(!GlobalVariableCheck(name)) return 0;
+    return (datetime)GlobalVariableGet(name);
+}
 
 void GV_DeleteAll()
 {
