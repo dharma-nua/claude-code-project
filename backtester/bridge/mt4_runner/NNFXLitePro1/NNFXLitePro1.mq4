@@ -23,11 +23,12 @@
 //+------------------------------------------------------------------+
 //| State constants
 //+------------------------------------------------------------------+
-#define STATE_LAUNCHER  0
-#define STATE_STARTING  1
-#define STATE_PLAYING   2
-#define STATE_PAUSED    3
-#define STATE_STOPPED   4
+#define STATE_LAUNCHER    0
+#define STATE_STARTING    1
+#define STATE_WAIT_CHART  2
+#define STATE_PLAYING     3
+#define STATE_PAUSED      4
+#define STATE_STOPPED     5
 
 //+------------------------------------------------------------------+
 //| Inputs
@@ -120,6 +121,9 @@ void OnTimer()
         case STATE_STARTING:
             OnTimer_Starting();
             break;
+        case STATE_WAIT_CHART:
+            OnTimer_WaitChart();
+            break;
         case STATE_PLAYING:
             OnTimer_Playing();
             break;
@@ -152,65 +156,92 @@ void OnTimer_Launcher()
 }
 
 //+------------------------------------------------------------------+
-//| STARTING state: build HST, open chart, init engines, go to PLAYING
-//| Re-entrant: HST builds once, then ChartOpen retries each tick.
+//| STARTING state: build HST, then transition to WAIT_CHART
 //+------------------------------------------------------------------+
 void OnTimer_Starting()
 {
     string simSymbol = g_Pair + "_SIM";
 
-    //--- Step 1: Build HST file (once)
-    if(!g_HstBuilt)
+    //--- Build HST file
+    if(!HST_Build(g_Pair, simSymbol))
     {
-        if(!HST_Build(g_Pair, simSymbol))
-        {
-            Print("[NNFXLitePro1] ERROR: HST build failed. Returning to launcher.");
-            LAUNCH_Create(SourceSymbol, TestStartDate, TestEndDate, StartingBalance);
-            g_State = STATE_LAUNCHER;
-            return;
-        }
-        g_HstBuilt = true;
-        Print("[NNFXLitePro1] HST built. Waiting for MT4 to index file...");
-        return;  // give MT4 one timer tick (~200ms) to index
-    }
-
-    //--- Step 2: Open offline chart (retry up to 25 times = ~5 seconds)
-    g_SimChartId = ChartOpen(simSymbol, PERIOD_D1);
-    if(g_SimChartId <= 0)
-    {
-        g_ChartRetries++;
-        if(g_ChartRetries >= 25)
-        {
-            Print("[NNFXLitePro1] ERROR: ChartOpen failed after ", g_ChartRetries,
-                  " retries. Error=", GetLastError(),
-                  ". Try File > Open Offline > ", simSymbol, " D1 manually.");
-            LAUNCH_Create(SourceSymbol, TestStartDate, TestEndDate, StartingBalance);
-            g_State = STATE_LAUNCHER;
-        }
-        else if(g_ChartRetries % 5 == 0)
-        {
-            Print("[NNFXLitePro1] ChartOpen retry ", g_ChartRetries, "/25...");
-        }
+        Print("[NNFXLitePro1] ERROR: HST build failed. Returning to launcher.");
+        LAUNCH_Create(SourceSymbol, TestStartDate, TestEndDate, StartingBalance);
+        g_State = STATE_LAUNCHER;
         return;
     }
-    Print("[NNFXLitePro1] Offline chart opened. ID=", g_SimChartId);
 
-    //--- Step 3: Minimize host chart, bring sim chart to front
+    //--- Update launcher to show instructions
+    LAUNCH_Destroy();
+    LAUNCH_Label(LAUNCH_LBL_TITLE, LAUNCH_X, LAUNCH_Y_TITLE,
+                 "Open the offline chart:", clrGold, 12);
+    LAUNCH_Label(LAUNCH_LBL_PAIR, LAUNCH_X, LAUNCH_Y_FIRST,
+                 "File > Open Offline", clrWhite, 10);
+    LAUNCH_Label(LAUNCH_LBL_START, LAUNCH_X, LAUNCH_Y_FIRST + LAUNCH_ROW_H,
+                 "Select: " + simSymbol + ", D1", clrWhite, 10);
+    LAUNCH_Label(LAUNCH_LBL_END, LAUNCH_X, LAUNCH_Y_FIRST + LAUNCH_ROW_H * 2,
+                 "Click Open", clrWhite, 10);
+    LAUNCH_Label(LAUNCH_LBL_BAL, LAUNCH_X, LAUNCH_Y_FIRST + LAUNCH_ROW_H * 3,
+                 "Waiting for chart...", clrYellow, 10);
+    ChartRedraw(g_HostChartId);
+
+    Print("[NNFXLitePro1] HST built. Please open offline chart: ",
+          "File > Open Offline > ", simSymbol, " D1");
+
+    g_ChartRetries = 0;
+    g_State = STATE_WAIT_CHART;
+}
+
+//+------------------------------------------------------------------+
+//| WAIT_CHART state: scan for offline chart, init engines when found
+//+------------------------------------------------------------------+
+void OnTimer_WaitChart()
+{
+    string simSymbol = g_Pair + "_SIM";
+
+    //--- Scan all open charts for our sim symbol
+    long chartId = ChartFirst();
+    while(chartId >= 0)
+    {
+        if(ChartSymbol(chartId) == simSymbol && chartId != g_HostChartId)
+        {
+            g_SimChartId = chartId;
+            Print("[NNFXLitePro1] Found offline chart! ID=", g_SimChartId);
+            InitEnginesAndPlay(simSymbol);
+            return;
+        }
+        chartId = ChartNext(chartId);
+    }
+
+    //--- Not found yet — log periodically
+    g_ChartRetries++;
+    if(g_ChartRetries % 25 == 0)  // every ~5 seconds
+    {
+        Print("[NNFXLitePro1] Still waiting for offline chart ",
+              simSymbol, " ... (", g_ChartRetries * 200 / 1000, "s)");
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Init all engines and transition to PLAYING
+//+------------------------------------------------------------------+
+void InitEnginesAndPlay(string simSymbol)
+{
+    //--- Bring sim chart to front
     ChartSetInteger(g_HostChartId, CHART_BRING_TO_TOP, false);
     ChartSetInteger(g_SimChartId,  CHART_BRING_TO_TOP, true);
 
-    //--- Step 4: Remove launcher UI
+    //--- Remove instructions from host chart
     LAUNCH_Destroy();
 
-    //--- Step 5: Draw HUD on offline chart
+    //--- Draw HUD on offline chart
     HUD_Create(g_SimChartId);
 
-    //--- Step 6: Init bar feeder
+    //--- Init bar feeder
     if(!BF_Init(g_Pair, simSymbol, g_StartDate, g_EndDate, DefaultSpeed))
     {
         Print("[NNFXLitePro1] ERROR: Bar feeder init failed.");
         HUD_Destroy(g_SimChartId);
-        ChartClose(g_SimChartId);
         g_SimChartId = 0;
         LAUNCH_Create(SourceSymbol, TestStartDate, TestEndDate, StartingBalance);
         g_State = STATE_LAUNCHER;
@@ -219,25 +250,25 @@ void OnTimer_Starting()
     Print("[NNFXLitePro1] Bar feeder ready. Bars=", BF_GetTotalBars(),
           " Speed=", BF_GetSpeedLevel(), " (", BF_GetSpeedMs(), "ms)");
 
-    //--- Step 7: Init signal engine
+    //--- Init signal engine
     SE_Init(simSymbol, C1_IndicatorName, C1_Mode,
             C1_FastBuffer, C1_SlowBuffer,
             C1_SignalBuffer, C1_CrossLevel,
             C1_HistBuffer, C1_HistDualBuffer, C1_HistBuyBuffer, C1_HistSellBuffer,
             C1_ParamValues, C1_ParamTypes);
 
-    //--- Step 8: Init trade engine
+    //--- Init trade engine
     TE_Init(simSymbol, g_Pair,
             ATR_Period, ATR_SL_Multiplier, ATR_TP_Multiplier, RiskPercent);
 
-    //--- Step 9: Init stats engine
+    //--- Init stats engine
     ST_Init(g_Balance);
 
-    //--- Step 10: Init CSV exporter
+    //--- Init CSV exporter
     if(!CE_Init(g_Pair, g_StartDate, g_EndDate))
         Print("[NNFXLitePro1] WARNING: CSV exporter init failed.");
 
-    //--- Step 11: Go to PLAYING — auto-play
+    //--- Go to PLAYING — auto-play
     g_LastBarTime = GetTickCount();
     g_State = STATE_PLAYING;
 
