@@ -13,7 +13,6 @@ int BF_SpeedIntervals[5] = {2000, 800, 300, 100, 30};
 //| Bar feeder state
 string   BF_simSymbol;
 string   BF_realSymbol;
-long     BF_offlineChartId;
 int      BF_cursorIndex;    // current shift on real chart (counting down from high)
 int      BF_endBarIndex;    // stop when cursorIndex < this
 int      BF_totalBars;
@@ -21,30 +20,6 @@ int      BF_barsFed;
 int      BF_speedLevel;     // 1-5
 int      BF_speedMs;        // timer interval in ms
 string   BF_hstFilename;    // filename for FileOpenHistory
-
-//+------------------------------------------------------------------+
-long BF_FindOfflineChart(string simSymbol)
-{
-    long chartId = ChartFirst();
-    while(chartId >= 0)
-    {
-        if(ChartSymbol(chartId) == simSymbol && ChartPeriod(chartId) == PERIOD_D1)
-        {
-            int indicatorCount = ChartIndicatorsTotal(chartId, 0);
-            for(int i = 0; i < indicatorCount; i++)
-            {
-                if(ChartIndicatorName(chartId, 0, i) == "NNFXLitePanel")
-                {
-                    Print("[BF] Found offline chart ID=", chartId, " with NNFXLitePanel");
-                    return chartId;
-                }
-            }
-            Print("[BF] Found chart for ", simSymbol, " but NNFXLitePanel not attached.");
-        }
-        chartId = ChartNext(chartId);
-    }
-    return -1;
-}
 
 //+------------------------------------------------------------------+
 bool BF_RewriteHSTHeader()
@@ -94,12 +69,7 @@ bool BF_Init(string realSymbol, string simSymbol,
     BF_hstFilename = simSymbol + "1440.hst";
     BF_barsFed     = 0;
 
-    BF_offlineChartId = BF_FindOfflineChart(simSymbol);
-    if(BF_offlineChartId < 0)
-    {
-        Print("[BF] ERROR: Offline chart not found. Run NNFXLiteSetup, open offline chart, attach NNFXLitePanel.");
-        return false;
-    }
+    Print("[BF] HST file: ", BF_hstFilename);
 
     int startShift = iBarShift(realSymbol, PERIOD_D1, startDate, false);
     int endShift   = iBarShift(realSymbol, PERIOD_D1, endDate, false);
@@ -129,6 +99,8 @@ bool BF_Init(string realSymbol, string simSymbol,
         Print("[BF] ERROR: Failed to rewrite HST header.");
         return false;
     }
+    // Don't refresh chart here — 0 bars causes MT4 "waiting for update" state.
+    // Chart will refresh when the first bar is fed.
 
     Print("[BF] Init complete. Total bars=", BF_totalBars, " Speed=", BF_speedLevel, " (", BF_speedMs, "ms)");
     return true;
@@ -170,8 +142,6 @@ bool BF_FeedNextBar()
     FileFlush(handle);
     FileClose(handle);
 
-    ChartSetSymbolPeriod(BF_offlineChartId, BF_simSymbol, PERIOD_D1);
-
     BF_barsFed++;
     BF_cursorIndex--;
     return true;
@@ -190,7 +160,6 @@ int      BF_GetSpeedLevel()      { return BF_speedLevel; }
 int      BF_GetSpeedMs()         { return BF_speedMs; }
 int      BF_GetCurrentBarNum()   { return BF_barsFed; }
 int      BF_GetTotalBars()       { return BF_totalBars; }
-long     BF_GetOfflineChartId()  { return BF_offlineChartId; }
 
 datetime BF_GetCurrentDate()
 {
