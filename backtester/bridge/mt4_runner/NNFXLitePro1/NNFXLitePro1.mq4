@@ -62,6 +62,8 @@ int    g_State;
 long   g_HostChartId;
 long   g_SimChartId;
 uint   g_LastBarTime;
+bool   g_HstBuilt;        // true after HST_Build succeeds
+int    g_ChartRetries;     // ChartOpen retry counter
 
 // Config read from launcher (may override externs)
 string   g_Pair;
@@ -144,31 +146,51 @@ void OnTimer_Launcher()
     }
 
     Print("[NNFXLitePro1] Start clicked. Initializing sim...");
-    g_State = STATE_STARTING;
+    g_HstBuilt     = false;
+    g_ChartRetries = 0;
+    g_State        = STATE_STARTING;
 }
 
 //+------------------------------------------------------------------+
 //| STARTING state: build HST, open chart, init engines, go to PLAYING
+//| Re-entrant: HST builds once, then ChartOpen retries each tick.
 //+------------------------------------------------------------------+
 void OnTimer_Starting()
 {
     string simSymbol = g_Pair + "_SIM";
 
-    //--- Step 1: Build HST file
-    if(!HST_Build(g_Pair, simSymbol))
+    //--- Step 1: Build HST file (once)
+    if(!g_HstBuilt)
     {
-        Print("[NNFXLitePro1] ERROR: HST build failed. Returning to launcher.");
-        g_State = STATE_LAUNCHER;
-        return;
+        if(!HST_Build(g_Pair, simSymbol))
+        {
+            Print("[NNFXLitePro1] ERROR: HST build failed. Returning to launcher.");
+            LAUNCH_Create(SourceSymbol, TestStartDate, TestEndDate, StartingBalance);
+            g_State = STATE_LAUNCHER;
+            return;
+        }
+        g_HstBuilt = true;
+        Print("[NNFXLitePro1] HST built. Waiting for MT4 to index file...");
+        return;  // give MT4 one timer tick (~200ms) to index
     }
 
-    //--- Step 2: Open offline chart
+    //--- Step 2: Open offline chart (retry up to 25 times = ~5 seconds)
     g_SimChartId = ChartOpen(simSymbol, PERIOD_D1);
     if(g_SimChartId <= 0)
     {
-        Print("[NNFXLitePro1] ERROR: ChartOpen failed for ", simSymbol,
-              " Error=", GetLastError());
-        g_State = STATE_LAUNCHER;
+        g_ChartRetries++;
+        if(g_ChartRetries >= 25)
+        {
+            Print("[NNFXLitePro1] ERROR: ChartOpen failed after ", g_ChartRetries,
+                  " retries. Error=", GetLastError(),
+                  ". Try File > Open Offline > ", simSymbol, " D1 manually.");
+            LAUNCH_Create(SourceSymbol, TestStartDate, TestEndDate, StartingBalance);
+            g_State = STATE_LAUNCHER;
+        }
+        else if(g_ChartRetries % 5 == 0)
+        {
+            Print("[NNFXLitePro1] ChartOpen retry ", g_ChartRetries, "/25...");
+        }
         return;
     }
     Print("[NNFXLitePro1] Offline chart opened. ID=", g_SimChartId);
